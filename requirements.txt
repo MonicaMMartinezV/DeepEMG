@@ -1,0 +1,21 @@
+# Núcleo de Python científico
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.2
+matplotlib==3.9.2
+seaborn==0.13.2
+joblib==1.4.2
+tqdm==4.66.4
+
+# Deep Learning (CPU o GPU)
+torch==2.3.0
+torchaudio==2.3.0
+torchvision==0.18.0
+
+# Interfaz de usuario (ambos entornos)
+ipywidgets==8.1.2         # Para interfaz en Google Colab
+tk==0.1.0                 # Para interfaz local con Tkinter (usa el módulo estándar)
+# Nota: en la mayoría de instalaciones, Tkinter viene preinstalado con Python.
+
+# Otros utilitarios
+packaging>=23.0
