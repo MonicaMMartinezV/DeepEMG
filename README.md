@@ -9,7 +9,8 @@ El modelo fue desarrollado en PyTorch, y entrenado tanto en Google Colab como en
 
 ## Descripción general
 
-El sistema procesa archivos de texto (.txt) que contienen lecturas de 8 canales EMG obtenidas mediante un brazalete Myo Armband [https://doi.org/10.24432/C5ZP5C](Dataset).  
+El sistema procesa archivos de texto (.txt) que contienen lecturas de 8 canales EMG obtenidas mediante un brazalete Myo Armband [Dataset](https://doi.org/10.24432/C5ZP5C). 
+
 Cada archivo representa una sesión de captura de señales musculares correspondientes a diferentes gestos de la mano, tales como flexión, extensión, puño cerrado o desviaciones radial y cubital.
 
 ---
@@ -69,7 +70,9 @@ python interfaz.py
 ---
 
 **Mónica Monserrat Martínez Vásquez**
+
 *Tec de Monterrey*
+
 *[A01710965@tec.mx](mailto:A01710965@tec.mx)*
 
 ---
