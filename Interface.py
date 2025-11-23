@@ -9,6 +9,16 @@ import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+baseDir = os.path.dirname(os.path.abspath(__file__))
+
+modelsDir   = os.path.join(baseDir, "Models", "Train models")
+scalersDir  = os.path.join(baseDir, "Scalers")
+artifactsDir = baseDir
+
+modelPath   = os.path.join(modelsDir, "EMGLSTMModel1.pt")
+scalerPath  = os.path.join(scalersDir, "scaler.save")
+curvesPath  = os.path.join(artifactsDir, "training_curves.npz")
+
 class EMGLSTMClassifier(nn.Module):
     def __init__(self, inputSize=8, latentDim=64, layers=1, classes=8, dropout=0.3):
         super().__init__()
@@ -28,41 +38,34 @@ class EMGLSTMClassifier(nn.Module):
         out = self.relu(self.fc1(out))
         out = self.dropout(out)
         return self.fc2(out)
-    
 
-modelPATH = "Modelos/EMGLSTMModel.pt"
-scalerPATH = "Scalers/scaler.save"
-
-if not os.path.exists(modelPATH):
+if not os.path.exists(modelPath):
     messagebox.showerror("Error", f"No existe el modelo en: {modelPATH}")
     raise SystemExit
 
-if not os.path.exists(scalerPATH):
+if not os.path.exists(scalerPath):
     messagebox.showerror("Error", f"No existe el scaler en: {scalerPATH}")
     raise SystemExit
 
-scaler = joblib.load(scalerPATH)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 try:
-    scaler = joblib.load(scalerPATH)
+    scaler = joblib.load(scalerPath)
 except Exception as e:
     messagebox.showerror("Error", f"No se pudo cargar el scaler: {e}")
     raise
 
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = EMGLSTMClassifier()
-model.load_state_dict(torch.load(modelPATH, map_location=device))
-model.to(device)
-model.eval()
-
 try:
-    model.load_state_dict(torch.load(modelPATH, map_location=device))
+    stateDict = torch.load(modelPath, map_location=device)
+    model.load_state_dict(stateDict)
+    model.to(device)
+    model.eval()
 except Exception as e:
     messagebox.showerror("Error", f"No se pudo cargar el modelo: {e}")
     raise
 
-print("Modelo y scaler cargados")
+print("Modelo y scaler cargados correctamente.\nDispositivo:", device)
 
 gestureLabels = {
     1: "Mano relajada",
@@ -74,7 +77,7 @@ gestureLabels = {
     7: "Palma extendida"
 }
 
-current_file = None
+currentFile = None
 
 def predictFromFile():
     global current_file
