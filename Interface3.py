@@ -15,29 +15,32 @@ modelsDir   = os.path.join(baseDir, "Models", "Train models")
 scalersDir  = os.path.join(baseDir, "Scalers")
 artifactsDir = baseDir
 
-modelPath   = os.path.join(modelsDir, "EMGLSTMModel1.pt")
+modelPath   = os.path.join(modelsDir, "EMGBiLSTMModel3.pt")
 scalerPath  = os.path.join(scalersDir, "scaler.save")
-curvesPath  = os.path.join(artifactsDir, "training_curves1.npz")
+curvesPath  = os.path.join(artifactsDir, "training_curves3.npz")
 
-class EMGLSTMClassifier(nn.Module):
-    def __init__(self, inputSize=8, latentDim=64, layers=1, classes=8, dropout=0.3):
+class EMGBiLSTMClassifier(nn.Module):
+    def __init__(self, in_channels=8, num_classes=8):
         super().__init__()
-        self.lstm = nn.LSTM(input_size=inputSize,
-                            hidden_size=latentDim,
-                            num_layers=layers,
-                            batch_first=True,
-                            dropout=dropout)
-        self.fc1 = nn.Linear(latentDim, 64)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(64, classes)
+        self.lstm = nn.LSTM(
+            input_size=in_channels,
+            hidden_size=64,
+            num_layers=2,
+            batch_first=True,
+            dropout=0.3,
+            bidirectional=True
+        )
+        self.fc = nn.Sequential(
+            nn.Linear(64 * 2, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, num_classes)
+        )
 
     def forward(self, x):
         out, _ = self.lstm(x)
         out = out[:, -1, :]
-        out = self.relu(self.fc1(out))
-        out = self.dropout(out)
-        return self.fc2(out)
+        return self.fc(out)
 
 if not os.path.exists(modelPath):
     messagebox.showerror("Error", f"No existe el modelo en: {modelPath}")
@@ -55,7 +58,7 @@ except Exception as e:
     messagebox.showerror("Error", f"No se pudo cargar el scaler: {e}")
     raise
 
-model = EMGLSTMClassifier()
+model = EMGBiLSTMClassifier()
 try:
     stateDict = torch.load(modelPath, map_location=device)
     model.load_state_dict(stateDict)
@@ -188,7 +191,7 @@ def showLearningCurves():
         messagebox.showerror("Error", f"No se pudieron cargar curvas: {e}")
 
 root = tk.Tk()
-root.title("Clasificación de Gestos EMG - LSTM")
+root.title("Clasificación de Gestos EMG - CNN + LSTM")
 root.geometry("450x300")
 
 def selectFile():
