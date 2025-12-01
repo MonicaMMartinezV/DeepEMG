@@ -16,7 +16,7 @@ scalersDir  = os.path.join(baseDir, "Scalers")
 artifactsDir = baseDir
 
 modelPath   = os.path.join(modelsDir, "EMGBiLSTMModel3.pt")
-scalerPath  = os.path.join(scalersDir, "scaler.save")
+scalerPath  = os.path.join(scalersDir, "scaler3.save")
 curvesPath  = os.path.join(artifactsDir, "training_curves3.npz")
 
 class EMGBiLSTMClassifier(nn.Module):
@@ -71,13 +71,14 @@ except Exception as e:
 print("Modelo y scaler cargados correctamente.\nDispositivo:", device)
 
 gestureLabels = {
-    1: "Mano relajada",
-    2: "Puño cerrado",
-    3: "Flexión",
-    4: "Extensión",
-    5: "Desviación radial",
-    6: "Desviación cubital",
-    7: "Palma extendida"
+    0: "Mano en reposo",
+    1: "Puño cerrado",
+    2: "Flexión",
+    3: "Extensión",
+    4: "Desviación radial",
+    5: "Desviación cubital",
+    6: "Palma extendida",
+    7: "Otro / transición / gesto variable"
 }
 
 currentFile = None
@@ -87,7 +88,6 @@ def predictFromFile():
     if current_file is None:
         messagebox.showwarning("Advertencia", "Primero selecciona un archivo .txt")
         return
-
     try:
         EMGtxt = pd.read_csv(current_file, sep=r"\s+", engine="python",
                              header=None, on_bad_lines='skip')
@@ -97,27 +97,33 @@ def predictFromFile():
             return
 
         EMGtxt.columns = ['time'] + [f'ch{i}' for i in range(1, 9)] + ['label']
-        EMGtxt = EMGtxt[EMGtxt['label'] != 0].reset_index(drop=True)
         EMGtxt = EMGtxt.apply(pd.to_numeric, errors='coerce').dropna().reset_index(drop=True)
 
-        print("—"*60)
+        print("—" * 60)
         print(f"Archivo: {current_file}")
-        print("Clases presentes (únicas) y conteos:")
+        print("Conteo de clases:")
         print(EMGtxt['label'].value_counts().sort_index())
 
-        classCounts = EMGtxt['label'].value_counts()
-        classCounts = classCounts[classCounts.index != 0]
+        EMGtxt_no_rest = EMGtxt[EMGtxt['label'] != 0]
 
-        classPick = classCounts.idxmax()
-        gesture = EMGtxt[EMGtxt['label'] == classPick]
+        if EMGtxt_no_rest.empty:
+            messagebox.showinfo("Sin gesto", "Este archivo solo contiene reposo.")
+            return
+
+        classPick = int(EMGtxt_no_rest['label'].value_counts().idxmax())
+
+        gesture = EMGtxt_no_rest[EMGtxt_no_rest['label'] == classPick]
 
         if len(gesture) < 200:
-            messagebox.showinfo("Sin suficientes datos", f"Se necesitan 200 muestras, solo hay {len(gesture)}.")
+            messagebox.showerror("Error", f"No hay suficientes muestras de la clase {classPick}.")
             return
 
         channels = [f'ch{i}' for i in range(1, 9)]
-        window = gesture.iloc[:200][channels]
-        windowScaled = scaler.transform(window)  
+        window = gesture.iloc[:200][channels].values
+
+        window_df = pd.DataFrame(window, columns=channels)
+        windowScaled = scaler.transform(window_df)
+
         inputTensor = torch.tensor(windowScaled, dtype=torch.float32).unsqueeze(0).to(device)
 
         with torch.no_grad():
@@ -125,25 +131,20 @@ def predictFromFile():
             predClass = torch.argmax(logits, dim=1).item()
             probs = torch.softmax(logits, dim=1).cpu().numpy()[0]
 
-        
-        predClass = predClass + 1
-        predClass = int(predClass)
-        classPick = int(classPick)
-        
-        predLabel = gestureLabels.get(predClass, f"{predClass}")
-        realLabel = gestureLabels.get(classPick, f"{classPick}")
+        realLabelName = gestureLabels.get(classPick, f"{classPick}")
+        predLabelName = gestureLabels.get(predClass, f"{predClass}")
 
-        
-
-        print("Probabilidades (softmax) por clase índice (0..7):")
+        print("\nProbabilidades:")
         for i, p in enumerate(probs):
             print(f"  clase {i}: {p:.4f}")
-        print(f">> Predicción índice: {predClass}  →  {predLabel}")
-        print(f">> Clase real (mayoritaria en archivo): {classPick}  →  {realLabel}")
-        print("—"*60)
 
-        result_label.config(text=f"Clase Real: {classPick} — {realLabel}\n"
-                                 f"Clase Predicha: {predClass} — {predLabel}")
+        print(f">> Real: {classPick} — {realLabelName}")
+        print(f">> Predicha: {predClass} — {predLabelName}")
+
+        result_label.config(
+            text=f"Clase Real: {classPick} — {realLabelName}\n"
+                 f"Clase Predicha: {predClass} — {predLabelName}"
+        )
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
@@ -166,7 +167,6 @@ def showLearningCurves():
 
         plt.figure(figsize=(10,5))
 
-        # Loss
         plt.subplot(1,2,1)
         plt.plot(lossesTrain, label="Train Loss", color="blue")
         plt.xlabel("Época")
@@ -174,7 +174,6 @@ def showLearningCurves():
         plt.title("Curva de Loss (Entrenamiento)")
         plt.grid(True)
 
-        # Validation Accuracy
         plt.subplot(1,2,2)
         plt.plot(accuraciesVal, label="Validation Accuracy", color="green")
         plt.axhline(y=accuracyTest, color="red", linestyle="--", label=f"Test Accuracy = {accuracyTest:.2f}%")
