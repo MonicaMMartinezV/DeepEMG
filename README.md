@@ -168,6 +168,10 @@ Contiene:
 
 Deep Learning · IA Biomédica · Procesamiento de Señales EMG
 
+## Backup
+Este es un backup de proyecto entero en drive, en caso de perdida.
+[backup drive](https://drive.google.com/drive/folders/1H5ZihJImpYQyOi0dm4xr23-Oq8IHfhaY?usp=sharing)
+
 ## Referencias
 
 [1] Krilova, N., Kastalskiy, I., Kazantsev, V., Makarov, V., & Lobov, S. (2018). *EMG Data for Gestures* [Dataset]. UCI Machine Learning Repository. [https://doi.org/10.24432/C5ZP5C](https://doi.org/10.24432/C5ZP5C).
