@@ -40,8 +40,6 @@ Cada archivo representa una sesión de captura de señales musculares correspond
 | **MAE (Test)** | 1.0109 | 0.8282 | 0.6412 | **0.2664** |
 | **Bias (Test)** | -0.0570 | -0.1222 | 0.0114 | **-0.0603** |
 | **Varianza (Test)** | 3.9233 | 3.7161 | 3.6433 | **3.0080** |
-| **Macro F1-score** | — | — | — | **0.8109** |
-| **Weighted F1-score** | — | — | — | **0.8618** |
 
 El Modelo 4 se posiciona como la versión más robusta del proyecto. A diferencia de los modelos anteriores, esta versión corrige el pipeline de preparación de datos para reducir fuga de información, genera ventanas por archivo, ajusta la normalización únicamente con el conjunto de entrenamiento, aplica data augmentation solo sobre train y utiliza una partición que garantiza presencia de todas las clases en train, validation y test.
 
