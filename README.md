@@ -7,8 +7,9 @@ El sistema emplea distintas arquitecturas de redes neuronales profundas desarrol
 * **Modelo 1:** LSTM
 * **Modelo 2:** CNN + LSTM
 * **Modelo 3:** BiLSTM + Data Augmentation + Rebalanceo de clases
+* **Modelo 4:** BiLSTM con pipeline corregido, normalización sin fuga de datos, split por archivo y rebalanceo controlado
 
-El objetivo del proyecto es comparar el rendimiento de estos modelos bajo un pipeline de datos estandarizado, evaluar métricas clave y proporcionar una interfaz funcional para predicciones en tiempo real.
+El objetivo del proyecto es comparar el rendimiento de diferentes modelos de deep learning para clasificación de gestos EMG, evaluar métricas clave y proporcionar una interfaz funcional para predicciones en tiempo real. Además, el proyecto incluye una versión corregida del pipeline de datos para evitar fuga de información, aplicar normalización únicamente con datos de entrenamiento y evaluar el modelo con una partición más representativa de todas las clases.
 
 ## Descripción general
 
@@ -20,23 +21,27 @@ Cada archivo representa una sesión de captura de señales musculares correspond
 
 * Lectura, limpieza y normalización de señales EMG multicanal.
 * Segmentación con sliding windows (200×8).
+* Generación de ventanas por archivo para respetar la estructura original de cada sesión.
+* Normalización sin fuga de datos, ajustando el `StandardScaler` únicamente con el conjunto de entrenamiento.
+* División train/validation/test con cobertura de todas las clases.
+* Data augmentation aplicado únicamente sobre el conjunto de entrenamiento.
+* Rebalanceo mediante aumento dirigido y pesos automáticos por clase.
 * Entrenamiento reproducible mediante PyTorch.
-* Evaluación integral (Accuracy, MAE, Bias, Varianza, Matriz de Confusión).
+* Evaluación integral (Accuracy, MAE, Bias, Varianza, Matriz de Confusión, Precision, Recall y F1-score).
 * Exportación automática del conjunto de prueba a una carpeta `TestCases/`.
 * Interfaces gráficas (Tkinter) para cargar archivos `.txt` y obtener predicciones.
-* Reporte con resultados de cada modelo y comparativa final entre los tres modelos del proyecto.
+* Reporte con resultados de cada modelo y comparativa final entre las versiones desarrolladas.
 
 ## Resumen de modelos
 
-| Métrica             | Modelo 1 (LSTM) | Modelo 2 (CNN+LSTM) | Modelo 3 (BiLSTM+Augmentation+rebalanceo) |
-| ------------------- | --------------- | ------------------- | -------------------------------- |
-| **Accuracy (Test)** | 69.94%          | 74.38%              | **79.62%**                       |
-| **MAE (Test)**             | 1.0109          | 0.8282              | **0.6412**                       |
-| **Bias (Test)**            | -0.0570         | -0.1222             | **0.0114**                       |
-| **Varianza (Test)**        | 3.9233          | 3.7161              | **3.6433**                       |
-| **Loss final (Test)**      | 0.4037          | 0.3124              | **0.0992**                       |
+| Métrica | Modelo 1 (LSTM) | Modelo 2 (CNN+LSTM) | Modelo 3 (BiLSTM+Augmentation+rebalanceo) | Modelo 4 (BiLSTM + pipeline corregido) |
+|---|---:|---:|---:|---:|
+| **Accuracy (Test)** | 69.94% | 74.38% | 79.62% | **86.36%** |
+| **MAE (Test)** | 1.0109 | 0.8282 | 0.6412 | **0.2664** |
+| **Bias (Test)** | -0.0570 | -0.1222 | 0.0114 | **-0.0603** |
+| **Varianza (Test)** | 3.9233 | 3.7161 | 3.6433 | **3.0080** |
 
-El Modelo 3 se posiciona como la arquitectura ganadora, mostrando mejoras en todas las métricas gracias al uso de BiLSTM, rebalanceo y técnicas de aumento de datos.
+El Modelo 4 se posiciona como la versión más robusta del proyecto. A diferencia de los modelos anteriores, esta versión corrige el pipeline de preparación de datos para reducir fuga de información, genera ventanas por archivo, ajusta la normalización únicamente con el conjunto de entrenamiento, aplica data augmentation solo sobre train y utiliza una partición que garantiza presencia de todas las clases en train, validation y test.
 
 ## Carpeta TestCases
 
@@ -96,6 +101,7 @@ Si esta ruta no coincide con la ubicación real del dataset, modelos o escalador
    * `Model1.ipynb`
    * `Model2.ipynb`
    * `Model3.ipynb`
+   * `Model4.ipynb`
 2. Montar Google Drive
 3. Ejecutar todas las celdas
 4. Los pesos, curvas y artefactos se guardarán automáticamente
@@ -120,12 +126,19 @@ source .venv/bin/activate      # Linux/Mac
 pip install -r requirements.txt
 ```
 
+Si PyTorch no se instala correctamente desde `requirements.txt`, puede instalarse manualmente con:
+
+```bash
+pip install torch torchvision torchaudio
+```
+
 ### 3. Ejecutar una de las interfaces
 
 ```bash
 python Interface1.py   # LSTM
 python Interface2.py   # CNN+LSTM
 python Interface3.py   # BiLSTM
+python Interface4.py   # BiLSTM con pipeline corregido
 ```
 
 Las GUI permiten:
@@ -145,13 +158,15 @@ UCI Machine Learning Repository
 Contiene:
 - 8 canales EMG
 - Sesiones completas por sujeto
-- Etiquetas de 8 gestos distintos
+- Etiquetas originales de 0 a 7
 - Formato `.txt` estandarizado
+
+En este proyecto, la etiqueta `0` se elimina durante el preprocesamiento porque representa segmentos sin gesto activo o reposo. Por ello, los modelos entrenan con las etiquetas activas `1` a `7`, que internamente se codifican como clases `0` a `6` para ser compatibles con `CrossEntropyLoss`.
 
 ## Tecnologías
 
-* Python 3.10
-* PyTorch
+* Python 3.10 / 3.11 / 3.12
+* * PyTorch
 * NumPy / Pandas
 * Scikit-learn
 * Matplotlib / Seaborn
