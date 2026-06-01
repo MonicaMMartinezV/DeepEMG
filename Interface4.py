@@ -16,21 +16,50 @@ modelsDir = os.path.join(baseDir, "Models", "Train models")
 scalersDir = os.path.join(baseDir, "Scalers")
 artifactsDir = baseDir
 
-modelPath = os.path.join(modelsDir, "EMGBiLSTMModel4.pt")
+modelPath  = os.path.join(modelsDir, "EMGCNNBiLSTMAttentionClassifierModel4.pt")
 scalerPath = os.path.join(scalersDir, "scaler4.save")
 curvesPath = os.path.join(artifactsDir, "training_curves4.npz")
 
-class EMGBiLSTMClassifier(nn.Module):
-    def __init__(self, in_channels=8, num_classes=8):
+class EMGCNNBiLSTMAttentionClassifier(nn.Module):
+    def __init__(self, in_channels=8, num_classes=7):
         super().__init__()
 
-        self.lstm = nn.LSTM(
-            input_size=in_channels,
+        self.cnn = nn.Sequential(
+            nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=32,
+                kernel_size=3,
+                padding=1
+            ),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+
+            nn.Conv1d(
+                in_channels=32,
+                out_channels=64,
+                kernel_size=3,
+                padding=1
+            ),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2),
+            nn.Dropout(0.2)
+        )
+
+        self.bilstm = nn.LSTM(
+            input_size=64,
             hidden_size=64,
             num_layers=2,
             batch_first=True,
             dropout=0.3,
             bidirectional=True
+        )
+
+        self.attention = nn.Sequential(
+            nn.Linear(64 * 2, 64),
+            nn.Tanh(),
+            nn.Linear(64, 1)
         )
 
         self.fc = nn.Sequential(
@@ -41,9 +70,15 @@ class EMGBiLSTMClassifier(nn.Module):
         )
 
     def forward(self, x):
-        out, _ = self.lstm(x)
-        out = out[:, -1, :]
-        return self.fc(out)
+        x = x.permute(0, 2, 1)
+        x = self.cnn(x)
+        x = x.permute(0, 2, 1)
+        lstm_out, _ = self.bilstm(x)
+        attention_scores = self.attention(lstm_out)
+        attention_weights = torch.softmax(attention_scores, dim=1)
+        context = torch.sum(attention_weights * lstm_out, dim=1)
+        logits = self.fc(context)
+        return logits
 
 def load_checkpoint_safely(path, device):
     try:
@@ -98,7 +133,7 @@ if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
     labelToIndex = normalize_label_to_index(checkpoint.get("labelToIndex", None))
     indexToLabel = normalize_index_to_label(checkpoint.get("indexToLabel", None))
 
-    model = EMGBiLSTMClassifier(
+    model = EMGCNNBiLSTMAttentionClassifier(
         in_channels=8,
         num_classes=numClasses
     ).to(device)
@@ -114,7 +149,7 @@ else:
     labelToIndex = None
     indexToLabel = None
 
-    model = EMGBiLSTMClassifier(
+    model = EMGCNNBiLSTMAttentionClassifier(
         in_channels=8,
         num_classes=numClasses
     ).to(device)
@@ -288,6 +323,7 @@ def showLearningCurves():
         maeTest = data["maeTest"][0] if "maeTest" in data else None
         biasTest = data["biasTest"][0] if "biasTest" in data else None
         varTest = data["varTest"][0] if "varTest" in data else None
+        lossFinalTrain = data["lossFinalTrain"][0] if "lossFinalTrain" in data else None
 
         metric_text = ""
 
@@ -299,11 +335,13 @@ def showLearningCurves():
             metric_text += f"Bias (Test): {biasTest:.4f}\n"
         if varTest is not None:
             metric_text += f"Varianza (Test): {varTest:.4f}\n"
+        if lossFinalTrain is not None:
+            metric_text += f"Loss final (Train): {lossFinalTrain:.4f}\n"
 
         if not metric_text:
             metric_text = "No se encontraron métricas de test en el archivo."
 
-        messagebox.showinfo("Métricas del Modelo", metric_text)
+        messagebox.showinfo("Métricas del Modelo 4", metric_text)
 
         plt.figure(figsize=(10, 5))
 
@@ -339,7 +377,7 @@ def showLearningCurves():
         print("ERROR curvas:", e)
 
 root = tk.Tk()
-root.title("Clasificación de Gestos EMG - BiLSTM")
+root.title("Clasificación de Gestos EMG - CNN + BiLSTM + Attention")
 root.geometry("520x340")
 
 
