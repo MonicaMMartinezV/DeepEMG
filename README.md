@@ -1,4 +1,4 @@
-# **DeepEMG — Clasificación de gestos de mano mediante señales EMG con modelos LSTM, CNN-LSTM, BiLSTM y CNN-BiLSTM-Attention**
+# **DeepEMG — Clasificación de gestos de mano mediante señales EMG utilizando arquitecturas híbridas de Deep Learning**
 
 Este proyecto implementa un sistema completo para la clasificación automática de gestos de mano a partir de señales electromiográficas (EMG) adquiridas con el brazalete Myo Armband.
 
