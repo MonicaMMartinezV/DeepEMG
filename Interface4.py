@@ -1,8 +1,7 @@
 import os
 import warnings
 import tkinter as tk
-from tkinter import filedialog, messagebox
-
+from tkinter import filedialog, messagebox, ttk
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -293,12 +292,29 @@ def predictFromFile():
         print(f">> Real: {realOriginalLabel} — {realLabelName}")
         print(f">> Predicha: {predOriginalLabel} — {predLabelName}")
 
+        confidence = np.max(probs) * 100
+
         result_label.config(
-            text=(
-                f"Clase real: {realOriginalLabel} — {realLabelName}\n"
-                f"Clase predicha: {predOriginalLabel} — {predLabelName}\n"
-                f"Confianza: {np.max(probs) * 100:.2f}%"
-            )
+            text=f"{predOriginalLabel} — {predLabelName}"
+        )
+
+        real_label_value.config(
+            text=f"{realOriginalLabel} — {realLabelName}"
+        )
+
+        confidence_label.config(
+            text=f"{confidence:.2f}%"
+        )
+
+        confidence_detail_label.config(
+            text=f"El modelo predijo esta clase con una confianza del {confidence:.2f}%."
+        )
+
+        confidence_bar["value"] = confidence
+
+        status_label.config(
+            text="Predicción realizada correctamente.",
+            foreground=SUCCESS_COLOR
         )
 
     except Exception as e:
@@ -376,63 +392,313 @@ def showLearningCurves():
         messagebox.showerror("Error", f"No se pudieron cargar curvas: {e}")
         print("ERROR curvas:", e)
 
+BG_COLOR = "#F7F2FF"
+CARD_COLOR = "#FFFFFF"
+PRIMARY_COLOR = "#7C3AED"
+PRIMARY_DARK = "#5B21B6"
+PRIMARY_LIGHT = "#EDE9FE"
+SUCCESS_COLOR = "#6D28D9"
+TEXT_COLOR = "#1F1235"
+MUTED_COLOR = "#6B5A7A"
+BORDER_COLOR = "#DDD6FE"
+
 root = tk.Tk()
-root.title("Clasificación de Gestos EMG - CNN + BiLSTM + Attention")
-root.geometry("520x340")
+root.title("DeepEMG — CNN + BiLSTM + Attention")
+root.geometry("750x700")
+root.resizable(False, False)
+root.configure(bg=BG_COLOR)
+
+style = ttk.Style()
+style.theme_use("clam")
+
+style.configure(
+    "Primary.TButton",
+    font=("Segoe UI", 10, "bold"),
+    padding=10,
+    background=PRIMARY_COLOR,
+    foreground="white",
+    borderwidth=0
+)
+
+style.map(
+    "Primary.TButton",
+    background=[("active", PRIMARY_DARK)]
+)
+
+style.configure(
+    "Outline.TButton",
+    font=("Segoe UI", 10, "bold"),
+    padding=10,
+    background=PRIMARY_LIGHT,
+    foreground=PRIMARY_DARK,
+    borderwidth=0
+)
+
+style.map(
+    "Outline.TButton",
+    background=[("active", BORDER_COLOR)]
+)
+
+style.configure(
+    "Purple.Horizontal.TProgressbar",
+    thickness=15,
+    troughcolor="#EDE9FE",
+    background=PRIMARY_COLOR,
+    bordercolor="#EDE9FE",
+    lightcolor=PRIMARY_COLOR,
+    darkcolor=PRIMARY_COLOR
+)
+
+
+def create_card(parent, padx=26, pady=12):
+    card = tk.Frame(
+        parent,
+        bg=CARD_COLOR,
+        highlightbackground=BORDER_COLOR,
+        highlightthickness=1
+    )
+    card.pack(fill="x", padx=padx, pady=pady)
+    return card
 
 
 def selectFile():
     global current_file
 
     file = filedialog.askopenfilename(
+        title="Selecciona un archivo EMG",
         filetypes=[("Archivos TXT", "*.txt")]
     )
 
     if file:
         current_file = file
-        file_label.config(text=f"Archivo seleccionado:\n{file}")
-        result_label.config(text="")
+        file_name = os.path.basename(file)
 
+        file_label.config(
+            text=file_name,
+            fg=TEXT_COLOR
+        )
+
+        file_path_label.config(
+            text=file,
+            fg=MUTED_COLOR
+        )
+
+        result_label.config(text="Sin predicción")
+        real_label_value.config(text="—")
+        confidence_label.config(text="—")
+        confidence_detail_label.config(
+            text="Selecciona un archivo y presiona “Predecir gesto” para ver el resultado."
+        )
+        confidence_bar["value"] = 0
+
+        status_label.config(
+            text="Archivo cargado correctamente. Listo para predecir.",
+            fg=SUCCESS_COLOR
+        )
+
+header = tk.Frame(root, bg=PRIMARY_COLOR, height=100)
+header.pack(fill="x")
+header.pack_propagate(False)
+
+header_left = tk.Frame(header, bg=PRIMARY_COLOR)
+header_left.pack(side="left", fill="both", expand=True, padx=28, pady=16)
+
+title_label = tk.Label(
+    header_left,
+    text="DeepEMG",
+    font=("Segoe UI", 25, "bold"),
+    bg=PRIMARY_COLOR,
+    fg="white"
+)
+title_label.pack(anchor="w")
+
+subtitle_label = tk.Label(
+    header_left,
+    text="Clasificación de gestos EMG con CNN + BiLSTM + Attention",
+    font=("Segoe UI", 10),
+    bg=PRIMARY_COLOR,
+    fg="#EDE9FE"
+)
+subtitle_label.pack(anchor="w", pady=(2, 0))
+
+header_right = tk.Frame(header, bg=PRIMARY_COLOR)
+header_right.pack(side="right", padx=28, pady=24)
+
+btn_learning = ttk.Button(
+    header_right,
+    text="Ver métricas",
+    command=showLearningCurves,
+    style="Outline.TButton"
+)
+btn_learning.pack()
+
+main_container = tk.Frame(root, bg=BG_COLOR)
+main_container.pack(fill="both", expand=True)
+
+file_card = create_card(main_container)
+
+file_title = tk.Label(
+    file_card,
+    text="1. Seleccionar archivo EMG",
+    font=("Segoe UI", 13, "bold"),
+    bg=CARD_COLOR,
+    fg=TEXT_COLOR
+)
+file_title.pack(anchor="w", padx=18, pady=(14, 2))
+
+file_description = tk.Label(
+    file_card,
+    text="Carga un archivo .txt con señales EMG para realizar la predicción del gesto.",
+    font=("Segoe UI", 9),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR
+)
+file_description.pack(anchor="w", padx=18, pady=(0, 10))
 
 file_label = tk.Label(
-    root,
+    file_card,
     text="No has seleccionado ningún archivo",
-    wraplength=480
+    font=("Segoe UI", 10, "bold"),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR,
+    wraplength=670,
+    justify="left"
 )
-file_label.pack(pady=10)
+file_label.pack(anchor="w", padx=18, pady=(0, 2))
 
-btn_select = tk.Button(
-    root,
-    text="Seleccionar archivo .txt",
-    command=selectFile
+file_path_label = tk.Label(
+    file_card,
+    text="",
+    font=("Segoe UI", 8),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR,
+    wraplength=680,
+    justify="left"
 )
-btn_select.pack(pady=5)
+file_path_label.pack(anchor="w", padx=18, pady=(0, 12))
 
-btn_predict = tk.Button(
-    root,
+button_row = tk.Frame(file_card, bg=CARD_COLOR)
+button_row.pack(anchor="w", padx=18, pady=(0, 16))
+
+btn_select = ttk.Button(
+    button_row,
+    text="Seleccionar archivo",
+    command=selectFile,
+    style="Primary.TButton"
+)
+btn_select.pack(side="left", padx=(0, 10))
+
+btn_predict = ttk.Button(
+    button_row,
     text="Predecir gesto",
     command=predictFromFile,
-    bg="green",
-    fg="white"
+    style="Primary.TButton"
 )
-btn_predict.pack(pady=10)
+btn_predict.pack(side="left")
 
-btn_learning = tk.Button(
-    root,
-    text="Mostrar métricas y curvas de aprendizaje",
-    command=showLearningCurves,
-    bg="purple",
-    fg="white"
+
+result_card = create_card(main_container)
+
+result_title = tk.Label(
+    result_card,
+    text="2. Resultado de la predicción",
+    font=("Segoe UI", 13, "bold"),
+    bg=CARD_COLOR,
+    fg=TEXT_COLOR
 )
-btn_learning.pack(pady=10)
+result_title.pack(anchor="w", padx=18, pady=(14, 10))
+
+prediction_grid = tk.Frame(result_card, bg=CARD_COLOR)
+prediction_grid.pack(fill="x", padx=18, pady=(0, 8))
+
+predicted_label_title = tk.Label(
+    prediction_grid,
+    text="Gesto predicho",
+    font=("Segoe UI", 9),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR
+)
+predicted_label_title.grid(row=0, column=0, sticky="w")
 
 result_label = tk.Label(
-    root,
-    text="",
-    font=("Arial", 12),
-    fg="blue",
-    wraplength=480
+    prediction_grid,
+    text="Sin predicción",
+    font=("Segoe UI", 20, "bold"),
+    bg=CARD_COLOR,
+    fg=PRIMARY_COLOR
 )
-result_label.pack(pady=10)
+result_label.grid(row=1, column=0, sticky="w", pady=(2, 12))
+
+real_label_title = tk.Label(
+    prediction_grid,
+    text="Clase real detectada en el archivo",
+    font=("Segoe UI", 9),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR
+)
+real_label_title.grid(row=2, column=0, sticky="w")
+
+real_label_value = tk.Label(
+    prediction_grid,
+    text="—",
+    font=("Segoe UI", 12, "bold"),
+    bg=CARD_COLOR,
+    fg=TEXT_COLOR
+)
+real_label_value.grid(row=3, column=0, sticky="w", pady=(2, 12))
+
+confidence_title = tk.Label(
+    prediction_grid,
+    text="Precisión / confianza de la predicción",
+    font=("Segoe UI", 9),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR
+)
+confidence_title.grid(row=4, column=0, sticky="w")
+
+confidence_row = tk.Frame(prediction_grid, bg=CARD_COLOR)
+confidence_row.grid(row=5, column=0, sticky="ew", pady=(4, 4))
+
+confidence_bar = ttk.Progressbar(
+    confidence_row,
+    orient="horizontal",
+    length=460,
+    mode="determinate",
+    maximum=100,
+    style="Purple.Horizontal.TProgressbar"
+)
+confidence_bar.pack(side="left", padx=(0, 12))
+
+confidence_label = tk.Label(
+    confidence_row,
+    text="—",
+    font=("Segoe UI", 12, "bold"),
+    bg=CARD_COLOR,
+    fg=PRIMARY_DARK
+)
+confidence_label.pack(side="left")
+
+confidence_detail_label = tk.Label(
+    prediction_grid,
+    text="Selecciona un archivo y presiona “Predecir gesto” para ver el resultado.",
+    font=("Segoe UI", 9),
+    bg=CARD_COLOR,
+    fg=MUTED_COLOR,
+    wraplength=670,
+    justify="left"
+)
+confidence_detail_label.grid(row=6, column=0, sticky="w", pady=(2, 12))
+
+status_frame = tk.Frame(root, bg=BG_COLOR)
+status_frame.pack(fill="x", padx=26, pady=(0, 14))
+
+status_label = tk.Label(
+    status_frame,
+    text=f"Modelo cargado correctamente en {device}.",
+    font=("Segoe UI", 9),
+    bg=BG_COLOR,
+    fg=MUTED_COLOR
+)
+status_label.pack(anchor="w")
 
 root.mainloop()
